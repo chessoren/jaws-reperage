@@ -1,0 +1,11 @@
+# Render Blueprint — one free Docker web service that serves the app + API.
+# Deploy: push this repo to GitHub, then on render.com → New → Blueprint and
+# point it at the repo. Render reads this file automatically.
+services:
+  - type: web
+    name: jaws-reperage
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true

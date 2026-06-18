@@ -1,0 +1,6 @@
+node_modules/
+chrome/
+dist/
+*.local
+.DS_Store
+_design_ref/*.png

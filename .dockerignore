@@ -1,0 +1,10 @@
+node_modules
+dist
+chrome
+_design_ref
+.git
+.gitignore
+*.local
+npm-debug.log*
+.DS_Store
+.claude
