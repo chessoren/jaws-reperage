@@ -75,6 +75,17 @@ its way to the send button and clicks it (ripple, shine sweep and the eased
 conic spin all fire). It then fades out and the placeholder resumes cycling.
 The whole sequence is skipped under `prefers-reduced-motion: reduce`.
 
+## Conversation scene
+
+The demo does not stop at the click. Once the message is sent the hero clears
+out, the prompt bar slides down and docks just above the footer (one framer
+`layout` animation — the bar never unmounts), and the screen becomes the
+conversation: the user prompt lands top right in a rounded bubble, Mira thinks
+for a beat, then her answer streams in character by character as free formatted
+text — bold lead, paragraphs, bulleted capabilities, no bubble — followed by the
+copy / share / read-aloud / vote / more actions. The bar keeps cycling its grey
+placeholders underneath.
+
 ## Pixel grid
 
 12 × 16 cells, 32 px tiles with a 1 px gap, mirrored left and right behind the

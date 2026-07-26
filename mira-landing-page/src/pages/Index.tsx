@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { motion, useAnimate } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Copy,
+  MoreHorizontal,
+  Share,
+  ThumbsDown,
+  ThumbsUp,
+  Volume2,
+} from "lucide-react";
 
 const A = "https://qclay.design/lovable/sixsense";
 
@@ -393,6 +401,7 @@ function PixelGrid({
         transform: "translateY(-40%)",
         zIndex: 0,
         opacity: dim,
+        transition: "opacity 0.6s ease",
         pointerEvents: "none",
         WebkitMaskImage: mask,
         maskImage: mask,
@@ -1453,6 +1462,270 @@ function PromptBox({
 }
 
 /* -------------------------------------------------------------------------- */
+/*                                Conversation                                */
+/* -------------------------------------------------------------------------- */
+
+type Segment = { text: string; bold?: boolean };
+type Block = { type: "p" | "li"; segs: Segment[] };
+
+const ANSWER: Block[] = [
+  {
+    type: "p",
+    segs: [{ text: "Hey — I'm Mira, your first AI Employee.", bold: true }],
+  },
+  {
+    type: "p",
+    segs: [
+      {
+        text: "I don't wait in a dashboard for instructions. I see your screen, move your mouse and type on your keyboard, so I work inside the tools your team already uses.",
+      },
+    ],
+  },
+  {
+    type: "p",
+    segs: [{ text: "Here is what I can take off your plate this week:" }],
+  },
+  {
+    type: "li",
+    segs: [
+      { text: "Research & outreach", bold: true },
+      { text: " — build the lead list, enrich it, draft the first message." },
+    ],
+  },
+  {
+    type: "li",
+    segs: [
+      { text: "Inbox & tickets", bold: true },
+      { text: " — triage every morning, answer the routine ones, escalate the rest." },
+    ],
+  },
+  {
+    type: "li",
+    segs: [
+      { text: "Reporting", bold: true },
+      { text: " — pull the numbers on Monday and send the summary before you wake up." },
+    ],
+  },
+  {
+    type: "p",
+    segs: [
+      {
+        text: "Tell me what your week looks like and I'll start with the most repetitive part.",
+      },
+    ],
+  },
+];
+
+const ANSWER_LENGTH = ANSWER.reduce(
+  (total, block) =>
+    total + block.segs.reduce((sum, seg) => sum + seg.text.length, 0),
+  0,
+);
+
+function UserBubble({ text, phone }: { text: string; phone: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}
+    >
+      <div
+        style={{
+          maxWidth: "76%",
+          background: "#E8F1FF",
+          border: "1px solid rgba(34,106,205,0.06)",
+          borderRadius: 18,
+          padding: phone ? "9px 14px" : "10px 16px",
+          fontFamily: '"Inter Tight", sans-serif',
+          fontSize: phone ? 14 : 15,
+          lineHeight: "22px",
+          color: "#0D1B4B",
+        }}
+      >
+        {text}
+      </div>
+    </motion.div>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5, height: 22 }}>
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
+          transition={{
+            duration: 1.1,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 0.16,
+          }}
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "#70A8F2",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+const ACTION_ICONS = [Copy, Share, Volume2, ThumbsUp, ThumbsDown, MoreHorizontal];
+
+function AnswerActions() {
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14 }}
+    >
+      {ACTION_ICONS.map((Icon, i) => (
+        <button
+          key={i}
+          type="button"
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 24,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          <Icon
+            size={16}
+            strokeWidth={1.6}
+            color={
+              hovered === i ? "rgba(13,27,75,0.75)" : "rgba(13,27,75,0.38)"
+            }
+            style={{ transition: "color 0.2s" }}
+          />
+        </button>
+      ))}
+    </motion.div>
+  );
+}
+
+/** The answer streams in character by character across its formatted blocks. */
+function MiraAnswer({
+  streaming,
+  onDone,
+  phone,
+}: {
+  streaming: boolean;
+  onDone: () => void;
+  phone: boolean;
+}) {
+  const [revealed, setRevealed] = useState(0);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+
+  useEffect(() => {
+    if (!streaming) return;
+    let count = 0;
+    let timer = 0;
+
+    const step = () => {
+      count += 2 + Math.floor(Math.random() * 4);
+      setRevealed(Math.min(count, ANSWER_LENGTH));
+      if (count >= ANSWER_LENGTH) {
+        doneRef.current();
+        return;
+      }
+      timer = window.setTimeout(step, 16);
+    };
+
+    timer = window.setTimeout(step, 16);
+    return () => window.clearTimeout(timer);
+  }, [streaming]);
+
+  const size = phone ? 14 : 15;
+  let consumed = 0;
+
+  return (
+    <div
+      style={{
+        fontFamily: '"Inter Tight", sans-serif',
+        fontSize: size,
+        lineHeight: "24px",
+        color: "rgba(13,27,75,0.78)",
+      }}
+    >
+      {ANSWER.map((block, bi) => {
+        const parts = block.segs.map((seg) => {
+          const start = consumed;
+          consumed += seg.text.length;
+          const visible = Math.max(
+            0,
+            Math.min(seg.text.length, revealed - start),
+          );
+          return { seg, shown: seg.text.slice(0, visible) };
+        });
+
+        if (!parts.some((part) => part.shown.length > 0)) return null;
+
+        const content = parts.map((part, si) => (
+          <span
+            key={si}
+            style={
+              part.seg.bold
+                ? { fontWeight: 600, color: "#11315D" }
+                : undefined
+            }
+          >
+            {part.shown}
+          </span>
+        ));
+
+        if (block.type === "li") {
+          return (
+            <div
+              key={bi}
+              style={{
+                display: "flex",
+                gap: 10,
+                marginBottom: 6,
+                paddingLeft: 2,
+              }}
+            >
+              <span
+                style={{
+                  flexShrink: 0,
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "#70A8F2",
+                  marginTop: 9,
+                }}
+              />
+              <span>{content}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={bi} style={{ margin: bi === 0 ? "0 0 10px" : "10px 0" }}>
+            {content}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                            Mira cursor demo timeline                       */
 /* -------------------------------------------------------------------------- */
 
@@ -1471,6 +1744,8 @@ const wait = (ms: number) =>
 /* -------------------------------------------------------------------------- */
 
 type ClickMark = { id: number; x: number; y: number };
+/** hero → leaving (hero animates out) → chat (bar docked at the bottom) */
+type Scene = "hero" | "leaving" | "chat";
 
 const Index = () => {
   const layout = useLayout();
@@ -1483,6 +1758,13 @@ const Index = () => {
   const [demoPressed, setDemoPressed] = useState(false);
   const [focused, setFocused] = useState(false);
   const [clicks, setClicks] = useState<ClickMark[]>([]);
+
+  const [scene, setScene] = useState<Scene>("hero");
+  const [bubbleIn, setBubbleIn] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [answered, setAnswered] = useState(false);
+  const onAnswerDone = useCallback(() => setAnswered(true), []);
 
   const emitClick = useCallback((x: number, y: number) => {
     const id = Date.now() + Math.random();
@@ -1587,18 +1869,35 @@ const Index = () => {
       sendRef.current?.click();
       await animateCursor(el, { scale: 1 }, { duration: 0.22, ease: "easeOut" });
       if (stopped()) return;
-      await wait(620);
+      await wait(380);
       if (stopped()) return;
 
+      // 6 · the message is sent: the hero clears out, the bar docks at the
+      //     bottom and the conversation takes over the screen
       setDemoPressed(false);
       setDemoActive(false);
       setFocused(false);
       setMode("cycle");
-      await animateCursor(
+      void animateCursor(
         el,
         { opacity: 0, y: toSend.y + 26 },
-        { duration: 0.6, ease: "easeIn" },
+        { duration: 0.5, ease: "easeIn" },
       );
+      setScene("leaving");
+      await wait(430);
+      if (stopped()) return;
+
+      setScene("chat");
+      await wait(300);
+      if (stopped()) return;
+      setBubbleIn(true);
+      await wait(560);
+      if (stopped()) return;
+      setThinking(true);
+      await wait(950);
+      if (stopped()) return;
+      setThinking(false);
+      setStreaming(true);
     };
 
     void run();
@@ -1609,21 +1908,34 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const chat = scene === "chat";
+  // room kept under the docked bar for the fixed footer line
+  const footerSpace = layout.phone ? 66 : 52;
+
   return (
     <div
       style={{
         position: "relative",
         minHeight: "100dvh",
         overflowX: "hidden",
-        overflowY: layout.compact ? "auto" : "hidden",
+        overflowY: chat ? "hidden" : layout.compact ? "auto" : "hidden",
         background: "#EEF1F7",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <PixelGrid side="left" dim={layout.gridDim} shift={layout.gridShift} />
-      <PixelGrid side="right" dim={layout.gridDim} shift={layout.gridShift} />
+      {/* the grids step back once the conversation owns the screen */}
+      <PixelGrid
+        side="left"
+        dim={chat ? layout.gridDim * 0.45 : layout.gridDim}
+        shift={layout.gridShift}
+      />
+      <PixelGrid
+        side="right"
+        dim={chat ? layout.gridDim * 0.45 : layout.gridDim}
+        shift={layout.gridShift}
+      />
 
       <Navbar />
       <Sidebar hidden={layout.compact} />
@@ -1633,15 +1945,67 @@ const Index = () => {
           position: "relative",
           zIndex: 5,
           width: "100%",
-          maxWidth: 760,
+          maxWidth: chat ? 760 : 760,
           padding: layout.compact ? "84px 16px 96px" : "0 16px",
-          paddingTop: layout.compact ? 84 : 60,
+          paddingTop: chat ? (layout.phone ? 76 : 92) : layout.compact ? 84 : 60,
+          paddingBottom: chat ? footerSpace : layout.compact ? 96 : 0,
+          height: chat ? "100dvh" : undefined,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: chat ? "flex-start" : undefined,
         }}
       >
-        <FolderStack scale={layout.heroScale} />
+        {chat && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            style={{
+              flex: 1,
+              width: "100%",
+              maxWidth: 702,
+              minHeight: 0,
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              paddingBottom: 24,
+            }}
+          >
+            {bubbleIn && (
+              <UserBubble text={DEMO_PROMPT} phone={layout.phone} />
+            )}
+            {thinking && <ThinkingDots />}
+            {streaming && (
+              <div style={{ width: "100%" }}>
+                <MiraAnswer
+                  streaming={streaming}
+                  onDone={onAnswerDone}
+                  phone={layout.phone}
+                />
+                {answered && <AnswerActions />}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {!chat && (
+          <motion.div
+            animate={
+              scene === "leaving"
+                ? { opacity: 0, y: -26, scale: 0.97 }
+                : { opacity: 1, y: 0, scale: 1 }
+            }
+            transition={{ duration: 0.42, ease: [0.4, 0, 0.2, 1] }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              width: "100%",
+            }}
+          >
+            <FolderStack scale={layout.heroScale} />
 
         <motion.h1
           initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
@@ -1682,17 +2046,31 @@ const Index = () => {
           It sees your screen, moves your mouse, types your keyboard and gets the
           job done while you sleep.
         </motion.p>
+          </motion.div>
+        )}
 
-        <PromptBox
-          lineRef={lineRef}
-          sendRef={sendRef}
-          mode={mode}
-          onDemoTyped={onDemoTyped}
-          demoActive={demoActive}
-          demoPressed={demoPressed}
-          focused={focused}
-          phone={layout.phone}
-        />
+        {/* the bar itself never unmounts: it slides from the hero to the dock */}
+        <motion.div
+          layout
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <PromptBox
+            lineRef={lineRef}
+            sendRef={sendRef}
+            mode={mode}
+            onDemoTyped={onDemoTyped}
+            demoActive={demoActive}
+            demoPressed={demoPressed}
+            focused={focused}
+            phone={layout.phone}
+          />
+        </motion.div>
       </main>
 
       {/* click marks left by the Mira cursor */}
