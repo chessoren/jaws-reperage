@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210" height="192" viewBox="0 0 210 192" fill="none">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="210" y2="192" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C9E0FF"/><stop offset="0.5" stop-color="#9BC0F6"/><stop offset="1" stop-color="#E7D8FB"/>
+    </linearGradient>
+    <linearGradient id="glass3" x1="40" y1="40" x2="170" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.75"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.25"/>
+    </linearGradient>
+    <radialGradient id="orb3" cx="0.35" cy="0.3" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/><stop offset="1" stop-color="#7FB0F5" stop-opacity="0.15"/>
+    </radialGradient>
+  </defs>
+  <rect width="210" height="192" fill="url(#bg3)"/>
+  <circle cx="72" cy="72" r="46" fill="url(#orb3)"/>
+  <rect x="46" y="62" width="126" height="86" rx="26" fill="url(#glass3)" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="1.5"/>
+  <rect x="64" y="86" width="66" height="8" rx="4" fill="#FFFFFF" opacity="0.75"/>
+  <rect x="64" y="104" width="44" height="8" rx="4" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="150" cy="122" r="12" fill="#FFFFFF" opacity="0.6"/>
+</svg>

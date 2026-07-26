@@ -25,12 +25,33 @@ shadcn-ui boilerplate:
 
 ## Assets
 
-- Remote assets are loaded from `const A = "https://qclay.design/lovable/sixsense"`
-  (logos, folders, lights, card images, toolbar icons, arrow, dots).
-- Local tile sprites live in `public/tiles/`: `tile-empty.svg` plus
-  `tile-1.svg` … `tile-5.svg`, used by the canvas pixel grid. They are
-  rasterized once at `devicePixelRatio` (capped at 2) into offscreen canvases
-  through a module-level promise cache.
+Everything the page renders is served from `public/`, so no image depends on a
+third party host:
+
+- `public/mira-logo.svg` — the Mira cursor logo (navbar + the animated cursor).
+- `public/assets/` — folders, lights, reference cards, toolbar icons, arrow and
+  dot texture.
+- `public/tiles/` — `tile-empty.svg` plus `tile-1.svg` … `tile-5.svg`, used by
+  the canvas pixel grid. They are rasterized once at `devicePixelRatio` (capped
+  at 2) into offscreen canvases through a module-level promise cache.
+
+`Index.tsx` still knows the original remote artwork host
+(`const A = "https://qclay.design/lovable/sixsense"`). Set `USE_REMOTE_ASSETS`
+to `true` to load from it instead; every `<img>` keeps an `onError` handler that
+falls back to its local twin, so a failed remote request can never leave a
+broken image on screen.
+
+The Google Fonts stylesheet is loaded with `rel="preload"` + `onload` rather
+than as a blocking stylesheet: a slow font request would otherwise hold back the
+first paint and freeze every rAF-driven animation until it resolves.
+
+## Cursor demo
+
+2.6 s after load the Mira cursor walks in from the bottom left corner, clicks
+into the prompt bar, types *"Hey, what can Mira do for me?"*, turns around on
+its way to the send button and clicks it (ripple, shine sweep and the eased
+conic spin all fire). It then fades out and the placeholder resumes cycling.
+The whole sequence is skipped under `prefers-reduced-motion: reduce`.
 
 ## Pixel grid
 

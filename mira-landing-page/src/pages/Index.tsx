@@ -1,8 +1,53 @@
-import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SyntheticEvent } from "react";
+import { motion, useAnimate } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
 const A = "https://qclay.design/lovable/sixsense";
+
+/**
+ * Assets are served from /public/assets so the page renders instantly and never
+ * depends on a third party host. Flip this to true to pull the original artwork
+ * from `A` instead — a failed remote request still falls back to the local twin
+ * through `onAssetError`, it just costs a round trip first.
+ */
+const USE_REMOTE_ASSETS = false;
+
+/** Local twin of every remote asset, keyed by its remote file name. */
+const FALLBACK: Record<string, string> = {
+  "chat.svg": "/assets/chat.svg",
+  "search.svg": "/assets/search.svg",
+  "folder-0.svg?v=2": "/assets/folder-0.svg",
+  "folder-1.svg": "/assets/folder-1.svg",
+  "folder-2.svg": "/assets/folder-2.svg",
+  "folder-3.svg": "/assets/folder-3.svg",
+  "blue-light.svg": "/assets/blue-light.svg",
+  "blue-light-2.svg": "/assets/blue-light-2.svg",
+  "light-1.svg": "/assets/light-1.svg",
+  "light-2.svg": "/assets/light-2.svg",
+  "small-light.svg": "/assets/small-light.svg",
+  "small-light-2.svg": "/assets/small-light-2.svg",
+  "image-1.png": "/assets/image-1.svg",
+  "image-2.png": "/assets/image-2.svg",
+  "image-3.png": "/assets/image-3.svg",
+  "ai-select.svg": "/assets/ai-select.svg",
+  "image.svg": "/assets/image.svg",
+  "Capa_1.svg": "/assets/Capa_1.svg",
+  "dots.svg": "/assets/dots.svg",
+  "arrow-up.svg": "/assets/arrow-up.svg",
+};
+
+const assetSrc = (name: string) =>
+  USE_REMOTE_ASSETS ? `${A}/${name}` : (FALLBACK[name] ?? `${A}/${name}`);
+
+const onAssetError =
+  (name: string) => (event: SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    const local = FALLBACK[name];
+    if (!local || img.dataset.fallback === "1") return;
+    img.dataset.fallback = "1";
+    img.src = local;
+  };
 
 /* -------------------------------------------------------------------------- */
 /*                            Pixel grid background                           */
@@ -316,20 +361,26 @@ function Navbar() {
           gap: 6,
           marginTop: 22,
           marginLeft: 22,
-          width: 86.816,
-          height: 16,
+          height: 18,
         }}
       >
         <img
-          src={`${A}/logo-icon.svg`}
+          src="/mira-logo.svg"
           alt="Mira"
-          style={{ height: 16, width: "auto" }}
+          style={{ height: 18, width: "auto", display: "block" }}
         />
-        <img
-          src={`${A}/logo-text.svg`}
-          alt=""
-          style={{ height: 16, width: "auto" }}
-        />
+        <span
+          style={{
+            fontFamily: '"Inter Tight", sans-serif',
+            fontSize: 16,
+            fontWeight: 600,
+            letterSpacing: "-0.32px",
+            lineHeight: "18px",
+            color: "#11315D",
+          }}
+        >
+          Mira
+        </span>
       </div>
     </nav>
   );
@@ -375,7 +426,12 @@ function Sidebar() {
           cursor: "pointer",
         }}
       >
-        <img src={`${A}/chat.svg`} alt="" style={{ width: 18, height: 18 }} />
+        <img
+          src={assetSrc("chat.svg")}
+          onError={onAssetError("chat.svg")}
+          alt=""
+          style={{ width: 18, height: 18 }}
+        />
       </button>
 
       <button
@@ -396,7 +452,12 @@ function Sidebar() {
           cursor: "pointer",
         }}
       >
-        <img src={`${A}/search.svg`} alt="" style={{ width: 18, height: 18 }} />
+        <img
+          src={assetSrc("search.svg")}
+          onError={onAssetError("search.svg")}
+          alt=""
+          style={{ width: 18, height: 18 }}
+        />
       </button>
     </div>
   );
@@ -589,7 +650,8 @@ function FolderStack() {
       {STACK.map((item) => (
         <motion.img
           key={item.src}
-          src={`${A}/${item.src}`}
+          src={assetSrc("${item.src}")}
+          onError={onAssetError(item.src)}
           alt=""
           initial={item.rise ? { opacity: 0, y: 30 } : { opacity: 0 }}
           animate={item.rise ? { opacity: 1, y: 0 } : { opacity: 1 }}
@@ -678,7 +740,8 @@ function FolderStack() {
               }}
             >
               <img
-                src={`${A}/${card.src}`}
+                src={assetSrc("${card.src}")}
+                onError={onAssetError(card.src)}
                 alt=""
                 style={{
                   width: "100%",
@@ -700,21 +763,46 @@ function FolderStack() {
 /* -------------------------------------------------------------------------- */
 
 const PHRASES = [
-  "Create a finance dashboard design",
-  "Branding with M letter",
-  "Liquid glass effect",
-  "Loader animation",
-  "SaaS landing page",
+  "Hire an AI Employee for lead research",
+  "Ask Mira to clear the inbox before 9am",
+  "Turn this spreadsheet into a weekly report",
+  "Let Mira handle onboarding tickets",
+  "Watch Mira use your apps while you sleep",
 ];
 
-function useTypewriter() {
+const DEMO_PROMPT = "Hey, what can Mira do for me?";
+
+type TypeMode = "cycle" | "demo" | "hold";
+
+function useTypewriter(mode: TypeMode, onDemoTyped: () => void) {
   const [text, setText] = useState("");
+  const doneRef = useRef(onDemoTyped);
+  doneRef.current = onDemoTyped;
 
   useEffect(() => {
+    if (mode === "hold") return;
+
+    let timer = 0;
+
+    if (mode === "demo") {
+      let chars = 0;
+      setText("");
+      const type = () => {
+        chars += 1;
+        setText(DEMO_PROMPT.slice(0, chars));
+        if (chars >= DEMO_PROMPT.length) {
+          doneRef.current();
+          return;
+        }
+        timer = window.setTimeout(type, 34 + Math.random() * 44);
+      };
+      timer = window.setTimeout(type, 220);
+      return () => window.clearTimeout(timer);
+    }
+
     let phrase = 0;
     let chars = 0;
     let deleting = false;
-    let timer = 0;
 
     const step = () => {
       const current = PHRASES[phrase];
@@ -743,7 +831,7 @@ function useTypewriter() {
 
     timer = window.setTimeout(step, 22 + Math.random() * 25);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [mode]);
 
   return text;
 }
@@ -752,9 +840,18 @@ function useTypewriter() {
 /*                                 Send button                                */
 /* -------------------------------------------------------------------------- */
 
-function SendButton() {
+function SendButton({
+  buttonRef,
+  demoActive = false,
+  demoPressed = false,
+}: {
+  buttonRef?: React.RefObject<HTMLDivElement>;
+  demoActive?: boolean;
+  demoPressed?: boolean;
+}) {
   const [hovered, setHovered] = useState(false);
   const [arrowToggle, setArrowToggle] = useState(0);
+  const active = hovered || demoActive;
 
   const ringRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<() => void>(() => {});
@@ -787,13 +884,11 @@ function SendButton() {
       rafRef.current = requestAnimationFrame(loop);
     };
 
-    const start = () => {
+    startRef.current = () => {
       if (rafRef.current !== null) return;
       lastRef.current = performance.now();
       rafRef.current = requestAnimationFrame(loop);
     };
-
-    startRef.current = start;
 
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -801,26 +896,20 @@ function SendButton() {
     };
   }, []);
 
-  const handleEnter = () => {
-    hoveredRef.current = true;
-    setHovered(true);
-    setArrowToggle((v) => v + 1);
+  useEffect(() => {
+    hoveredRef.current = active;
+    if (active) setArrowToggle((v) => v + 1);
     startRef.current();
-  };
+  }, [active]);
 
-  const handleLeave = () => {
-    hoveredRef.current = false;
-    setHovered(false);
-    startRef.current();
-  };
-
-  const arrowTransition = { duration: 0.32, ease: [0.65, 0, 0.35, 1] as const };
+  const arrowTransition = { duration: 0.32, ease: [0.65, 0, 0.35, 1] };
 
   return (
     <motion.div
-      onHoverStart={handleEnter}
-      onHoverEnd={handleLeave}
-      animate={{ scale: hovered ? 1.05 : 1 }}
+      ref={buttonRef}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      animate={{ scale: demoPressed ? 0.94 : active ? 1.05 : 1 }}
       transition={{ duration: 0.2 }}
       style={{
         position: "relative",
@@ -843,6 +932,23 @@ function SendButton() {
           zIndex: 1,
         }}
       />
+
+      {/* click ripple, fired by the demo cursor */}
+      {demoPressed && (
+        <motion.div
+          initial={{ opacity: 0.55, scale: 0.7 }}
+          animate={{ opacity: 0, scale: 1.9 }}
+          transition={{ duration: 0.75, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 15,
+            border: "1.5px solid rgba(61,130,222,0.55)",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       {/* button body */}
       <div
@@ -903,7 +1009,8 @@ function SendButton() {
 
         {/* dots overlay */}
         <img
-          src={`${A}/dots.svg`}
+          src={assetSrc("dots.svg")}
+          onError={onAssetError("dots.svg")}
           alt=""
           style={{
             position: "absolute",
@@ -949,7 +1056,8 @@ function SendButton() {
           {arrowToggle > 0 && (
             <motion.img
               key={`out-${arrowToggle}`}
-              src={`${A}/arrow-up.svg`}
+              src={assetSrc("arrow-up.svg")}
+              onError={onAssetError("arrow-up.svg")}
               alt=""
               initial={{ y: 0, opacity: 1 }}
               animate={{ y: -16, opacity: 0 }}
@@ -964,7 +1072,8 @@ function SendButton() {
           )}
           <motion.img
             key={`in-${arrowToggle}`}
-            src={`${A}/arrow-up.svg`}
+            src={assetSrc("arrow-up.svg")}
+            onError={onAssetError("arrow-up.svg")}
             alt=""
             initial={arrowToggle > 0 ? { y: 16, opacity: 0 } : false}
             animate={{ y: 0, opacity: 1 }}
@@ -986,7 +1095,7 @@ function SendButton() {
 /*                                 Prompt box                                 */
 /* -------------------------------------------------------------------------- */
 
-function ToolbarButton({ icon }: { icon: string }) {
+function ToolbarButton({ icon, name }: { icon: string; name: string }) {
   return (
     <button
       type="button"
@@ -1002,13 +1111,34 @@ function ToolbarButton({ icon }: { icon: string }) {
         cursor: "pointer",
       }}
     >
-      <img src={icon} alt="" style={{ width: 14, height: 14 }} />
+      <img
+        src={icon}
+        onError={onAssetError(name)}
+        alt=""
+        style={{ width: 14, height: 14 }}
+      />
     </button>
   );
 }
 
-function PromptBox() {
-  const typed = useTypewriter();
+function PromptBox({
+  lineRef,
+  sendRef,
+  mode,
+  onDemoTyped,
+  demoActive,
+  demoPressed,
+  focused,
+}: {
+  lineRef: React.RefObject<HTMLDivElement>;
+  sendRef: React.RefObject<HTMLDivElement>;
+  mode: TypeMode;
+  onDemoTyped: () => void;
+  demoActive: boolean;
+  demoPressed: boolean;
+  focused: boolean;
+}) {
+  const typed = useTypewriter(mode, onDemoTyped);
 
   return (
     <motion.div
@@ -1033,13 +1163,18 @@ function PromptBox() {
           height: 116,
           background: "#FFFFFF",
           borderRadius: 20,
-          border: "1px solid rgba(34,106,205,0.05)",
+          border: focused
+            ? "1px solid rgba(61,130,222,0.35)"
+            : "1px solid rgba(34,106,205,0.05)",
+          boxShadow: focused ? "0 0 0 4px rgba(112,168,242,0.12)" : "none",
+          transition: "border-color 0.3s, box-shadow 0.3s",
           padding: "14px 14px 12px 16px",
           display: "flex",
           flexDirection: "column",
         }}
       >
         <div
+          ref={lineRef}
           style={{
             height: 32,
             display: "flex",
@@ -1081,7 +1216,7 @@ function PromptBox() {
               transform: "translateY(35%)",
             }}
           >
-            {/* Top Expert pill */}
+            {/* model selector */}
             <div
               style={{
                 display: "flex",
@@ -1109,7 +1244,8 @@ function PromptBox() {
                 }}
               >
                 <img
-                  src={`${A}/ai-select.svg`}
+                  src={assetSrc("ai-select.svg")}
+                  onError={onAssetError("ai-select.svg")}
                   alt=""
                   style={{ width: 8, height: 8 }}
                 />
@@ -1125,13 +1261,13 @@ function PromptBox() {
                   color: "#5085CE",
                 }}
               >
-                Top Expert
+                Mira AI
               </span>
               <ChevronDown size={12} color="#5085CE" style={{ flexShrink: 0 }} />
             </div>
 
-            <ToolbarButton icon={`${A}/image.svg`} />
-            <ToolbarButton icon={`${A}/Capa_1.svg`} />
+            <ToolbarButton icon={assetSrc("image.svg")} name="image.svg" />
+            <ToolbarButton icon={assetSrc("Capa_1.svg")} name="Capa_1.svg" />
 
             <div
               style={{
@@ -1181,7 +1317,7 @@ function PromptBox() {
                   whiteSpace: "nowrap",
                 }}
               >
-                UI Design
+                Onboarding
               </span>
               <span
                 style={{
@@ -1196,7 +1332,11 @@ function PromptBox() {
             </div>
           </div>
 
-          <SendButton />
+          <SendButton
+            buttonRef={sendRef}
+            demoActive={demoActive}
+            demoPressed={demoPressed}
+          />
         </div>
       </div>
     </motion.div>
@@ -1204,10 +1344,135 @@ function PromptBox() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                            Mira cursor demo timeline                       */
+/* -------------------------------------------------------------------------- */
+
+const CURSOR_SIZE = 30;
+// The arrow tip sits at ~20% / 8% of the sprite; rotating around it keeps the
+// tip glued to whatever the cursor is pointing at.
+const CURSOR_ORIGIN = "20% 8%";
+
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+/* -------------------------------------------------------------------------- */
 /*                                    Page                                    */
 /* -------------------------------------------------------------------------- */
 
 const Index = () => {
+  const lineRef = useRef<HTMLDivElement>(null);
+  const sendRef = useRef<HTMLDivElement>(null);
+  const [cursorScope, animateCursor] = useAnimate();
+
+  const [mode, setMode] = useState<TypeMode>("cycle");
+  const [demoActive, setDemoActive] = useState(false);
+  const [demoPressed, setDemoPressed] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  const typedResolve = useRef<(() => void) | null>(null);
+  const onDemoTyped = useCallback(() => {
+    typedResolve.current?.();
+    typedResolve.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let cancelled = false;
+    const stopped = () => cancelled || !cursorScope.current;
+
+    const run = async () => {
+      // Let the hero land first, the placeholder keeps cycling meanwhile.
+      await wait(2600);
+      if (stopped()) return;
+
+      const line = lineRef.current?.getBoundingClientRect();
+      const send = sendRef.current?.getBoundingClientRect();
+      if (!line || !send) return;
+
+      const el = cursorScope.current as HTMLElement;
+      const toLine = { x: line.left + 62, y: line.top + 15 };
+      const toSend = { x: send.left + send.width / 2, y: send.top + send.height / 2 };
+
+      // 1 · the cursor walks in from the bottom left corner
+      await animateCursor(
+        el,
+        {
+          opacity: [0, 1],
+          x: [-90, toLine.x],
+          y: [window.innerHeight + 90, toLine.y],
+          rotate: 0,
+        },
+        { duration: 1.35, ease: [0.22, 1, 0.36, 1] },
+      );
+      if (stopped()) return;
+
+      // 2 · it clicks into the prompt bar
+      await animateCursor(el, { scale: [1, 0.82, 1] }, { duration: 0.34 });
+      if (stopped()) return;
+      setFocused(true);
+
+      // 3 · it types the prompt
+      const typed = new Promise<void>((resolve) => {
+        typedResolve.current = resolve;
+      });
+      setMode("demo");
+      animateCursor(
+        el,
+        { y: [toLine.y, toLine.y - 3, toLine.y] },
+        { duration: 0.42, repeat: Infinity, ease: "easeInOut" },
+      );
+      await typed;
+      if (stopped()) return;
+      setMode("hold");
+      await wait(320);
+      if (stopped()) return;
+
+      // 4 · it turns around and heads for the send button, facing the button
+      //     again as it lands so the arrow stays readable underneath
+      await animateCursor(
+        el,
+        { x: toSend.x, y: toSend.y, rotate: [0, 200, 360] },
+        {
+          duration: 1.05,
+          ease: [0.45, 0, 0.2, 1],
+          rotate: { duration: 1.05, times: [0, 0.55, 1], ease: "easeInOut" },
+        },
+      );
+      if (stopped()) return;
+      setDemoActive(true);
+      await wait(220);
+      if (stopped()) return;
+
+      // 5 · and clicks send
+      await animateCursor(el, { scale: [1, 0.8, 1] }, { duration: 0.3 });
+      if (stopped()) return;
+      setDemoPressed(true);
+      await wait(700);
+      if (stopped()) return;
+
+      setDemoPressed(false);
+      setDemoActive(false);
+      setFocused(false);
+      await animateCursor(
+        el,
+        { opacity: 0, y: toSend.y + 26 },
+        { duration: 0.6, ease: "easeIn" },
+      );
+      if (stopped()) return;
+      setMode("cycle");
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       style={{
@@ -1248,18 +1513,16 @@ const Index = () => {
             fontFamily: '"Inter Tight", sans-serif',
             fontSize: 32,
             fontWeight: 400,
-            lineHeight: "32px",
+            lineHeight: "34px",
             letterSpacing: "-0.64px",
             color: "#11315D",
-            width: 385,
+            width: 520,
             maxWidth: "100%",
             margin: "32px auto 8px",
             textAlign: "center",
           }}
         >
-          Let&apos;s find the right
-          <br />
-          references for your work
+          Create and hire your first AI Employee in minutes.
         </motion.h1>
 
         <motion.p
@@ -1270,16 +1533,49 @@ const Index = () => {
             fontFamily: '"Inter Tight", sans-serif',
             fontSize: 14,
             fontWeight: 400,
+            lineHeight: "20px",
             color: "rgba(13,27,75,0.50)",
             textAlign: "center",
+            width: 560,
+            maxWidth: "100%",
             marginBottom: 20,
           }}
         >
-          What type of references are you looking for?
+          It sees your screen, moves your mouse, types your keyboard and gets the
+          job done while you sleep.
         </motion.p>
 
-        <PromptBox />
+        <PromptBox
+          lineRef={lineRef}
+          sendRef={sendRef}
+          mode={mode}
+          onDemoTyped={onDemoTyped}
+          demoActive={demoActive}
+          demoPressed={demoPressed}
+          focused={focused}
+        />
       </main>
+
+      {/* the Mira cursor that runs the demo */}
+      <motion.img
+        ref={cursorScope}
+        src="/mira-logo.svg"
+        alt=""
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: CURSOR_SIZE,
+          height: CURSOR_SIZE,
+          x: -90,
+          y: 2000,
+          opacity: 0,
+          transformOrigin: CURSOR_ORIGIN,
+          zIndex: 60,
+          pointerEvents: "none",
+          filter: "drop-shadow(0 8px 16px rgba(61,130,222,0.35))",
+        }}
+      />
 
       <footer
         style={{

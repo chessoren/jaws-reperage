@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="miraBody" x1="22" y1="8" x2="34" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8FBAF8" />
+      <stop offset="0.5" stop-color="#6299E9" />
+      <stop offset="1" stop-color="#4585D8" />
+    </linearGradient>
+    <linearGradient id="miraEdge" x1="24" y1="14" x2="72" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.38" />
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.12" />
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M22.5 12 L76.5 66 L40 70 L22.5 87.5 Z"
+    fill="url(#miraBody)"
+    stroke="url(#miraBody)"
+    stroke-width="9"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <path
+    d="M26.5 17.5 L69 60"
+    stroke="url(#miraEdge)"
+    stroke-width="2.5"
+    stroke-linecap="round"
+  />
+</svg>
