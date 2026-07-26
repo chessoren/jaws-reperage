@@ -12,6 +12,18 @@ npm run build    # typecheck + production build
 npm run preview
 ```
 
+## Single-file export
+
+`dist-single/index.html` is the whole page in one self-contained file — bundle,
+styles and all 27 SVG assets inlined as data URIs — so it runs offline and can
+be dropped straight onto any static host. Rebuild it with:
+
+```bash
+VITE_HASH_ROUTER=1 npm run build && python3 scripts/build-single-file.py
+```
+
+It is built with the hash router so it works when served from any path.
+
 ## Where the code lives
 
 Everything page-specific is in two files — the rest is the default Vite +
