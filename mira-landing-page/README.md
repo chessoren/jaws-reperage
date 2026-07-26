@@ -57,6 +57,16 @@ The Google Fonts stylesheet is loaded with `rel="preload"` + `onload` rather
 than as a blocking stylesheet: a slow font request would otherwise hold back the
 first paint and freeze every rAF-driven animation until it resolves.
 
+## Responsive
+
+One `useLayout()` hook drives the whole page from `window.innerWidth`, with
+breakpoints at 1024 px (compact) and 640 px (phone): the hero stack scales
+(1 → 0.9 → 0.78), the heading steps 32 → 28 → 24 px, the pixel grids dim and
+slide outwards, the left sidebar drops below 1024 px, the prompt toolbar sheds
+its two icon buttons and the divider on phones, and the page switches from a
+locked viewport to vertical scrolling. Verified with no horizontal overflow at
+1440, 1024, 768, 390 and 320 px.
+
 ## Cursor demo
 
 2.6 s after load the Mira cursor walks in from the bottom left corner, clicks

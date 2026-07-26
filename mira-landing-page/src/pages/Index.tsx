@@ -50,6 +50,62 @@ const onAssetError =
   };
 
 /* -------------------------------------------------------------------------- */
+/*                             Responsive layout                              */
+/* -------------------------------------------------------------------------- */
+
+type Layout = {
+  vw: number;
+  /** below 640px — phones */
+  phone: boolean;
+  /** below 1024px — phones and tablets */
+  compact: boolean;
+  heroScale: number;
+  headingSize: number;
+  subtitleSize: number;
+  gridDim: number;
+  gridShift: number;
+};
+
+function layoutFor(vw: number): Layout {
+  const phone = vw < 640;
+  const compact = vw < 1024;
+  return {
+    vw,
+    phone,
+    compact,
+    heroScale: phone ? 0.78 : compact ? 0.9 : 1,
+    headingSize: phone ? 24 : compact ? 28 : 32,
+    subtitleSize: phone ? 13 : 14,
+    gridDim: phone ? 0.35 : compact ? 0.6 : 1,
+    gridShift: phone ? 150 : compact ? 90 : 0,
+  };
+}
+
+function useLayout(): Layout {
+  const [layout, setLayout] = useState(() =>
+    layoutFor(typeof window === "undefined" ? 1440 : window.innerWidth),
+  );
+
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setLayout(layoutFor(window.innerWidth));
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return layout;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                            Pixel grid background                           */
 /* -------------------------------------------------------------------------- */
 
@@ -104,7 +160,15 @@ function loadSprites(): Promise<HTMLCanvasElement[]> {
   return spritesPromise;
 }
 
-function PixelGrid({ side }: { side: "left" | "right" }) {
+function PixelGrid({
+  side,
+  dim = 1,
+  shift = 0,
+}: {
+  side: "left" | "right";
+  dim?: number;
+  shift?: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -323,11 +387,12 @@ function PixelGrid({ side }: { side: "left" | "right" }) {
     <div
       style={{
         position: "absolute",
-        left: side === "left" ? 0 : undefined,
-        right: side === "right" ? 0 : undefined,
+        left: side === "left" ? -shift : undefined,
+        right: side === "right" ? -shift : undefined,
         top: "50%",
         transform: "translateY(-40%)",
         zIndex: 0,
+        opacity: dim,
         pointerEvents: "none",
         WebkitMaskImage: mask,
         maskImage: mask,
@@ -361,21 +426,21 @@ function Navbar() {
           gap: 6,
           marginTop: 22,
           marginLeft: 22,
-          height: 18,
+          height: 16,
         }}
       >
         <img
           src="/mira-logo.svg"
           alt="Mira"
-          style={{ height: 18, width: "auto", display: "block" }}
+          style={{ height: 16, width: "auto", display: "block" }}
         />
         <span
           style={{
             fontFamily: '"Inter Tight", sans-serif',
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: 600,
-            letterSpacing: "-0.32px",
-            lineHeight: "18px",
+            letterSpacing: "-0.3px",
+            lineHeight: "16px",
             color: "#11315D",
           }}
         >
@@ -390,8 +455,10 @@ function Navbar() {
 /*                                  Sidebar                                   */
 /* -------------------------------------------------------------------------- */
 
-function Sidebar() {
+function Sidebar({ hidden }: { hidden: boolean }) {
   const [hovered, setHovered] = useState<"chat" | "search" | null>(null);
+
+  if (hidden) return null;
 
   return (
     <div
@@ -635,22 +702,34 @@ const CARDS: CardSpec[] = [
 
 const START_SIZE = 20;
 
-function FolderStack() {
+function FolderStack({ scale = 1 }: { scale?: number }) {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   return (
     <div
       style={{
         position: "relative",
-        width: FOLDER_W,
-        height: 220,
+        width: FOLDER_W * scale,
+        height: 220 * scale,
         overflow: "visible",
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: "50%",
+          width: FOLDER_W,
+          height: 220,
+          overflow: "visible",
+          transform: `translateX(-50%) scale(${scale})`,
+          transformOrigin: "bottom center",
+        }}
+      >
       {STACK.map((item) => (
         <motion.img
           key={item.src}
-          src={assetSrc("${item.src}")}
+          src={assetSrc(item.src)}
           onError={onAssetError(item.src)}
           alt=""
           initial={item.rise ? { opacity: 0, y: 30 } : { opacity: 0 }}
@@ -740,7 +819,7 @@ function FolderStack() {
               }}
             >
               <img
-                src={assetSrc("${card.src}")}
+                src={assetSrc(card.src)}
                 onError={onAssetError(card.src)}
                 alt=""
                 style={{
@@ -754,6 +833,7 @@ function FolderStack() {
           </motion.div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1129,6 +1209,7 @@ function PromptBox({
   demoActive,
   demoPressed,
   focused,
+  phone,
 }: {
   lineRef: React.RefObject<HTMLDivElement>;
   sendRef: React.RefObject<HTMLDivElement>;
@@ -1137,8 +1218,13 @@ function PromptBox({
   demoActive: boolean;
   demoPressed: boolean;
   focused: boolean;
+  phone: boolean;
 }) {
   const typed = useTypewriter(mode, onDemoTyped);
+  // Everything the page types on its own is placeholder copy, so it stays grey;
+  // only what the Mira cursor types reads as real input.
+  const isInput = mode === "demo" || mode === "hold";
+  const textColor = isInput ? "#0D1B4B" : "rgba(13,27,75,0.38)";
 
   return (
     <motion.div
@@ -1183,17 +1269,30 @@ function PromptBox({
             fontSize: 15,
             lineHeight: "22px",
             fontWeight: 400,
-            color: "#0D1B4B",
+            color: textColor,
+            transition: "color 0.2s",
             paddingBottom: 10,
+            minWidth: 0,
+            overflow: "hidden",
+            whiteSpace: "nowrap",
           }}
         >
-          <span>{typed}</span>
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "clip",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {typed}
+          </span>
           <span
             style={{
               display: "inline-block",
+              flexShrink: 0,
               width: 2,
               height: 18,
-              background: "#0D1B4B",
+              background: textColor,
               marginLeft: 2,
               animation: "promptCaretBlink 1s steps(1) infinite",
             }}
@@ -1213,6 +1312,7 @@ function PromptBox({
               display: "flex",
               alignItems: "center",
               gap: 6,
+              minWidth: 0,
               transform: "translateY(35%)",
             }}
           >
@@ -1222,7 +1322,8 @@ function PromptBox({
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                width: 110,
+                width: phone ? 98 : 110,
+                flexShrink: 0,
                 height: 28,
                 background: "#E8F1FF",
                 borderRadius: 8,
@@ -1266,23 +1367,28 @@ function PromptBox({
               <ChevronDown size={12} color="#5085CE" style={{ flexShrink: 0 }} />
             </div>
 
-            <ToolbarButton icon={assetSrc("image.svg")} name="image.svg" />
-            <ToolbarButton icon={assetSrc("Capa_1.svg")} name="Capa_1.svg" />
+            {!phone && (
+              <>
+                <ToolbarButton icon={assetSrc("image.svg")} name="image.svg" />
+                <ToolbarButton icon={assetSrc("Capa_1.svg")} name="Capa_1.svg" />
 
-            <div
-              style={{
-                width: 1,
-                height: 18,
-                background: "rgba(0,0,0,0.12)",
-                margin: "0 2px",
-              }}
-            />
+                <div
+                  style={{
+                    width: 1,
+                    height: 18,
+                    background: "rgba(0,0,0,0.12)",
+                    margin: "0 2px",
+                  }}
+                />
+              </>
+            )}
 
             <button
               type="button"
               style={{
                 width: 28,
                 height: 28,
+                flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1304,6 +1410,7 @@ function PromptBox({
                 alignItems: "center",
                 gap: 4,
                 height: 28,
+                minWidth: 0,
                 background: "rgba(0,0,0,0.05)",
                 borderRadius: 6,
                 padding: "0 8px",
@@ -1315,6 +1422,8 @@ function PromptBox({
                   fontSize: 12,
                   color: "rgba(13,27,75,0.65)",
                   whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 Onboarding
@@ -1361,7 +1470,10 @@ const wait = (ms: number) =>
 /*                                    Page                                    */
 /* -------------------------------------------------------------------------- */
 
+type ClickMark = { id: number; x: number; y: number };
+
 const Index = () => {
+  const layout = useLayout();
   const lineRef = useRef<HTMLDivElement>(null);
   const sendRef = useRef<HTMLDivElement>(null);
   const [cursorScope, animateCursor] = useAnimate();
@@ -1370,6 +1482,16 @@ const Index = () => {
   const [demoActive, setDemoActive] = useState(false);
   const [demoPressed, setDemoPressed] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [clicks, setClicks] = useState<ClickMark[]>([]);
+
+  const emitClick = useCallback((x: number, y: number) => {
+    const id = Date.now() + Math.random();
+    setClicks((current) => [...current, { id, x, y }]);
+    window.setTimeout(
+      () => setClicks((current) => current.filter((c) => c.id !== id)),
+      700,
+    );
+  }, []);
 
   const typedResolve = useRef<(() => void) | null>(null);
   const onDemoTyped = useCallback(() => {
@@ -1393,8 +1515,10 @@ const Index = () => {
       if (!line || !send) return;
 
       const el = cursorScope.current as HTMLElement;
-      const toLine = { x: line.left + 62, y: line.top + 15 };
-      const toSend = { x: send.left + send.width / 2, y: send.top + send.height / 2 };
+      const toLine = {
+        x: line.left + Math.min(62, line.width * 0.2),
+        y: line.top + 15,
+      };
 
       // 1 · the cursor walks in from the bottom left corner
       await animateCursor(
@@ -1409,10 +1533,13 @@ const Index = () => {
       );
       if (stopped()) return;
 
-      // 2 · it clicks into the prompt bar
-      await animateCursor(el, { scale: [1, 0.82, 1] }, { duration: 0.34 });
+      // 2 · it clicks into the prompt bar: press, release, ripple
+      await animateCursor(el, { scale: 0.78 }, { duration: 0.11, ease: "easeOut" });
       if (stopped()) return;
+      emitClick(toLine.x, toLine.y);
       setFocused(true);
+      await animateCursor(el, { scale: 1 }, { duration: 0.19, ease: "easeOut" });
+      if (stopped()) return;
 
       // 3 · it types the prompt
       const typed = new Promise<void>((resolve) => {
@@ -1431,7 +1558,13 @@ const Index = () => {
       if (stopped()) return;
 
       // 4 · it turns around and heads for the send button, facing the button
-      //     again as it lands so the arrow stays readable underneath
+      //     again as it lands so the arrow stays readable underneath.
+      //     The rect is re-read here in case the layout moved meanwhile.
+      const sendNow = sendRef.current?.getBoundingClientRect() ?? send;
+      const toSend = {
+        x: sendNow.left + sendNow.width / 2,
+        y: sendNow.top + sendNow.height / 2,
+      };
       await animateCursor(
         el,
         { x: toSend.x, y: toSend.y, rotate: [0, 200, 360] },
@@ -1443,26 +1576,29 @@ const Index = () => {
       );
       if (stopped()) return;
       setDemoActive(true);
-      await wait(220);
+      await wait(240);
       if (stopped()) return;
 
-      // 5 · and clicks send
-      await animateCursor(el, { scale: [1, 0.8, 1] }, { duration: 0.3 });
+      // 5 · and clicks send for real: press down, fire the click, release
+      await animateCursor(el, { scale: 0.76 }, { duration: 0.11, ease: "easeOut" });
       if (stopped()) return;
       setDemoPressed(true);
-      await wait(700);
+      emitClick(toSend.x, toSend.y);
+      sendRef.current?.click();
+      await animateCursor(el, { scale: 1 }, { duration: 0.22, ease: "easeOut" });
+      if (stopped()) return;
+      await wait(620);
       if (stopped()) return;
 
       setDemoPressed(false);
       setDemoActive(false);
       setFocused(false);
+      setMode("cycle");
       await animateCursor(
         el,
         { opacity: 0, y: toSend.y + 26 },
         { duration: 0.6, ease: "easeIn" },
       );
-      if (stopped()) return;
-      setMode("cycle");
     };
 
     void run();
@@ -1477,19 +1613,20 @@ const Index = () => {
     <div
       style={{
         position: "relative",
-        minHeight: "100vh",
-        overflow: "hidden",
+        minHeight: "100dvh",
+        overflowX: "hidden",
+        overflowY: layout.compact ? "auto" : "hidden",
         background: "#EEF1F7",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <PixelGrid side="left" />
-      <PixelGrid side="right" />
+      <PixelGrid side="left" dim={layout.gridDim} shift={layout.gridShift} />
+      <PixelGrid side="right" dim={layout.gridDim} shift={layout.gridShift} />
 
       <Navbar />
-      <Sidebar />
+      <Sidebar hidden={layout.compact} />
 
       <main
         style={{
@@ -1497,13 +1634,14 @@ const Index = () => {
           zIndex: 5,
           width: "100%",
           maxWidth: 760,
-          paddingTop: 60,
+          padding: layout.compact ? "84px 16px 96px" : "0 16px",
+          paddingTop: layout.compact ? 84 : 60,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <FolderStack />
+        <FolderStack scale={layout.heroScale} />
 
         <motion.h1
           initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
@@ -1511,14 +1649,14 @@ const Index = () => {
           transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
           style={{
             fontFamily: '"Inter Tight", sans-serif',
-            fontSize: 32,
+            fontSize: layout.headingSize,
             fontWeight: 400,
-            lineHeight: "34px",
-            letterSpacing: "-0.64px",
+            lineHeight: `${layout.headingSize + 2}px`,
+            letterSpacing: "-0.02em",
             color: "#11315D",
-            width: 520,
+            width: layout.phone ? 300 : layout.compact ? 440 : 520,
             maxWidth: "100%",
-            margin: "32px auto 8px",
+            margin: layout.phone ? "24px auto 8px" : "32px auto 8px",
             textAlign: "center",
           }}
         >
@@ -1531,7 +1669,7 @@ const Index = () => {
           transition={{ duration: 0.6, delay: 0.45, ease: "easeOut" }}
           style={{
             fontFamily: '"Inter Tight", sans-serif',
-            fontSize: 14,
+            fontSize: layout.subtitleSize,
             fontWeight: 400,
             lineHeight: "20px",
             color: "rgba(13,27,75,0.50)",
@@ -1553,8 +1691,32 @@ const Index = () => {
           demoActive={demoActive}
           demoPressed={demoPressed}
           focused={focused}
+          phone={layout.phone}
         />
       </main>
+
+      {/* click marks left by the Mira cursor */}
+      {clicks.map((mark) => (
+        <motion.span
+          key={mark.id}
+          initial={{ opacity: 0.6, scale: 0.35 }}
+          animate={{ opacity: 0, scale: 2.6 }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          style={{
+            position: "fixed",
+            top: mark.y,
+            left: mark.x,
+            width: 26,
+            height: 26,
+            marginTop: -13,
+            marginLeft: -13,
+            borderRadius: "50%",
+            border: "1.5px solid rgba(61,130,222,0.6)",
+            zIndex: 59,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
 
       {/* the Mira cursor that runs the demo */}
       <motion.img
@@ -1584,9 +1746,11 @@ const Index = () => {
           left: 0,
           width: "100%",
           zIndex: 5,
+          padding: "0 16px",
           textAlign: "center",
           fontFamily: '"Inter Tight", sans-serif',
-          fontSize: 13,
+          fontSize: layout.phone ? 11 : 13,
+          lineHeight: layout.phone ? "15px" : "normal",
           fontWeight: 400,
           color: "rgba(13,27,75,0.45)",
         }}

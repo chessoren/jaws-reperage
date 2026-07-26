@@ -1,9 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="39" height="17" viewBox="0 0 39 17" fill="none">
   <defs>
-    <radialGradient id="gl" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#CFE4FF" stop-opacity="0.95"/>
-      <stop offset="0.45" stop-color="#CFE4FF" stop-opacity="0.427"/>
-      <stop offset="1" stop-color="#CFE4FF" stop-opacity="0"/>
+    <filter id="f" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+    <radialGradient id="g" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#D6E8FF" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#D6E8FF" stop-opacity="0.380"/>
+      <stop offset="1" stop-color="#D6E8FF" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <ellipse cx="19.5" cy="8.5" rx="19.5" ry="8.5" fill="url(#gl)"/></svg>
+  <ellipse cx="19.5" cy="8.5" rx="17.94" ry="7.82" fill="url(#g)" filter="url(#f)"/>
+</svg>

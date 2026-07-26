@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="104" height="170" viewBox="0 0 104 170" fill="none">
   <defs>
+    <filter id="f" x="-60%" y="-30%" width="220%" height="180%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
     <linearGradient id="bm" x1="52.0" y1="170" x2="52.0" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7FB4F7" stop-opacity="0.38"/>
-      <stop offset="1" stop-color="#7FB4F7" stop-opacity="0"/>
+      <stop offset="0" stop-color="#88BAF9" stop-opacity="0.34"/>
+      <stop offset="0.55" stop-color="#88BAF9" stop-opacity="0.153"/>
+      <stop offset="1" stop-color="#88BAF9" stop-opacity="0"/>
     </linearGradient>
-    <radialGradient id="bs" cx="0.5" cy="1" r="0.85">
-      <stop offset="0" stop-color="#7FB4F7" stop-opacity="0.342"/>
-      <stop offset="1" stop-color="#7FB4F7" stop-opacity="0"/>
-    </radialGradient>
   </defs>
-  <path d="M52.0 3.4 L97.75999999999999 170 L6.24 170 Z" fill="url(#bm)"/>
-  <ellipse cx="52.0" cy="156.4" rx="47.84" ry="34.0" fill="url(#bs)"/></svg>
+  <g filter="url(#f)">
+    <path d="M52.0 10.2 L91.52 168.3 L12.48 168.3 Z" fill="url(#bm)"/>
+  </g>
+</svg>
